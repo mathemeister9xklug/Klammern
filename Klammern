@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>20 Aufgaben: Klammern & Punkt vor Strich</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #fafafa;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #d35400; /* Dunkles Orange */
+        }
+
+        .controls {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            border-bottom: 4px solid #e67e22;
+        }
+
+        button {
+            background-color: #e67e22;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #d35400;
+        }
+
+        button.secondary {
+            background-color: #95a5a6;
+        }
+
+        button.secondary:hover {
+            background-color: #7f8c8d;
+        }
+
+        .task-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .task-row {
+            display: flex;
+            align-items: center;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            font-size: 1.2em;
+        }
+
+        .task-number {
+            font-weight: bold;
+            margin-right: 15px;
+            min-width: 30px;
+            color: #bdc3c7;
+            font-size: 0.9em;
+        }
+
+        .expression {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            letter-spacing: 1px;
+            margin-right: 15px;
+        }
+
+        .equals {
+            margin-right: 15px;
+            color: #7f8c8d;
+        }
+
+        input {
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 1em;
+            padding: 8px;
+            width: 80px;
+            font-weight: bold;
+            color: #2c3e50;
+            transition: border-color 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #e67e22;
+        }
+
+        /* Feedback Status */
+        .status-icon {
+            font-size: 1.2em;
+            margin-left: 15px;
+            min-width: 30px;
+        }
+        
+        .correct input {
+            background-color: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+        
+        .incorrect input {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+
+        .solution-text {
+            margin-left: auto;
+            color: #27ae60;
+            font-weight: bold;
+            display: none; 
+            font-size: 0.9em;
+        }
+        
+        .show-solution .solution-text {
+            display: block;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Klammern & Punkt vor Strich</h1>
+
+    <div class="controls">
+        <p><strong>20 Aufgaben:</strong> Löse die Aufgaben. Achte genau auf die Vorrangregeln!<br>
+        <em>Punktrechnung (• :) vor Strichrechnung (+ -). Klammern zuerst.</em></p>
+        
+        <button onclick="checkAll()">Alle Prüfen</button>
+        <button class="secondary" onclick="toggleSolutions()">Lösungen anzeigen</button>
+        <button class="secondary" onclick="generateTasks()">Neue Aufgaben</button>
+    </div>
+
+    <div id="taskList" class="task-list">
+        </div>
+
+<script>
+    const tasksContainer = document.getElementById('taskList');
+    const totalTasks = 20;
+
+    // Zufallszahl zwischen min und max (inklusiv)
+    function r(min, max) {
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    // Berechnet das Ergebnis eines Strings (sicherer eval wrapper)
+    function calc(expr) {
+        // Ersetze visuelle Operatoren durch JS Operatoren
+        let jsExpr = expr.replace(/•/g, '*').replace(/:/g, '/');
+        try {
+            return eval(jsExpr);
+        } catch (e) {
+            return NaN;
+        }
+    }
+
+    // Templates für Aufgaben (3 oder 4 Terme)
+    // a, b, c, d sind Platzhalter für Zufallszahlen
+    // Wir bauen eine Funktion, die gültige Zahlen für ein Template sucht
+    
+    const templates = [
+        // 3 Terme
+        { pattern: "a + b • c", type: 3 },
+        { pattern: "(a + b) • c", type: 3 },
+        { pattern: "a • b - c", type: 3 },
+        { pattern: "a • (b - c)", type: 3 },
+        { pattern: "a + b : c", type: 3, checkDiv: true }, // b muss durch c teilbar sein
+        { pattern: "(a + b) : c", type: 3, checkDiv: true }, // (a+b) muss durch c teilbar sein
+        
+        // 4 Terme
+        { pattern: "a + b • c - d", type: 4 },
+        { pattern: "(a + b) • c - d", type: 4 },
+        { pattern: "a • b + c • d", type: 4 },
+        { pattern: "a + (b - c) • d", type: 4 },
+        { pattern: "(a + b) : c + d", type: 4, checkDiv: true },
+        { pattern: "a • b - c : d", type: 4, checkDiv: true }
+    ];
+
+    function generateTasks() {
+        tasksContainer.innerHTML = '';
+        
+        for (let i = 1; i <= totalTasks; i++) {
+            let task = createValidTask();
+            
+            let row = document.createElement('div');
+            row.className = 'task-row';
+            row.id = `task-${i}`;
+            row.setAttribute('data-solution', task.result);
+
+            row.innerHTML = `
+                <span class="task-number">${i}.</span>
+                <span class="expression">${task.expression}</span>
+                <span class="equals">=</span>
+                <input type="number" placeholder="?" onkeydown="if(event.key==='Enter') checkAll()">
+                <span class="status-icon" id="status-${i}"></span>
+                <span class="solution-text">Lösung: ${task.result}</span>
+            `;
+            tasksContainer.appendChild(row);
+        }
+        // Lösungen verstecken beim Neuladen
+        tasksContainer.classList.remove('show-solution');
+    }
+
+    function createValidTask() {
+        let valid = false;
+        let expression = "";
+        let result = 0;
+
+        while (!valid) {
+            // Zufälliges Template wählen
+            let t = templates[r(0, templates.length - 1)];
+            
+            // Zahlen generieren (kleinere Zahlen für Multiplikation, damit es nicht explodiert)
+            let a = r(2, 15);
+            let b = r(2, 12);
+            let c = r(2, 10);
+            let d = r(2, 10);
+
+            // Spezialregeln für Division (Teilbarkeit erzwingen)
+            if (t.checkDiv) {
+                // Wenn das Pattern z.B. "a + b : c" ist, muss b ein Vielfaches von c sein.
+                // Trick: Wir generieren c und den Faktor, und berechnen b rückwärts.
+                
+                if (t.pattern.includes("b : c")) {
+                    // b soll durch c teilbar sein
+                    c = r(2, 9);
+                    b = c * r(1, 8); 
+                }
+                if (t.pattern.includes("(a + b) : c")) {
+                    c = r(2, 9);
+                    let sum = c * r(2, 8); // Summe ist Vielfaches
+                    // Zerlege Summe zufällig in a und b
+                    a = r(1, sum - 1);
+                    b = sum - a;
+                }
+                if (t.pattern.includes("c : d")) {
+                    d = r(2, 9);
+                    c = d * r(1, 8);
+                }
+            }
+
+            // String zusammenbauen
+            let rawStr = t.pattern
+                .replace('a', a).replace('b', b).replace('c', c).replace('d', d);
+
+            // Berechnen
+            result = calc(rawStr);
+
+            // Validierung:
+            // 1. Ergebnis muss Ganzzahl sein
+            // 2. Ergebnis muss > 0 sein
+            // 3. Optional: Keine negativen Zwischenschritte (hier vereinfacht: keine a-b wo b>a in Klammern)
+            //    Der einfache eval Check reicht oft, aber bei (b-c) prüfen wir manuell:
+            
+            let safe = true;
+            if (rawStr.includes(`(${b} - ${c})`) && b < c) safe = false;
+            if (rawStr.includes(`(${b} - ${c})`) && b === c) safe = false; // Keine 0
+            if (rawStr.includes(`${b} - ${c}`) && !rawStr.includes('(') && b < c && !rawStr.includes('+')) {
+                // Grober Check für negative Ergebnisse bei einfacher Subtraktion
+                // Wird durch result > 0 meistens abgefangen, aber wir wollen "schöne" Aufgaben
+            }
+
+            if (Number.isInteger(result) && result > 0 && result < 200 && safe) {
+                expression = rawStr;
+                valid = true;
+            }
+        }
+        return { expression, result };
+    }
+
+    function checkAll() {
+        for (let i = 1; i <= totalTasks; i++) {
+            let row = document.getElementById(`task-${i}`);
+            let input = row.querySelector('input');
+            let statusIcon = document.getElementById(`status-${i}`);
+            let correctVal = parseInt(row.getAttribute('data-solution'));
+            let userVal = parseInt(input.value);
+
+            if (userVal === correctVal) {
+                row.classList.add('correct');
+                row.classList.remove('incorrect');
+                statusIcon.innerHTML = "✅";
+                statusIcon.style.color = "green";
+            } else {
+                row.classList.add('incorrect');
+                row.classList.remove('correct');
+                statusIcon.innerHTML = "❌";
+                statusIcon.style.color = "red";
+            }
+        }
+    }
+
+    function toggleSolutions() {
+        tasksContainer.classList.toggle('show-solution');
+    }
+
+    // Initiale Generierung
+    generateTasks();
+
+</script>
+
+</body>
+</html>
